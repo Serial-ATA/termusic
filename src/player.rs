@@ -22,11 +22,6 @@
  * SOFTWARE.
  */
 use anyhow::{bail, Result};
-use gst::ClockTime;
-use gstreamer as gst;
-use gstreamer::prelude::*;
-use gstreamer_pbutils as gst_pbutils;
-use gstreamer_player as gst_player;
 // use std::sync::Arc;
 // use std::thread;
 // use std::marker::{Send, Sync};
@@ -40,9 +35,13 @@ use crate::souvlaki::{
 use std::str::FromStr;
 #[cfg(feature = "mpris")]
 use std::sync::mpsc::{self, Receiver};
+use std::thread;
+use std::time::Duration;
+use vlc::{Instance, Media, MediaPlayer, MediaPlayerAudioEx};
 
-pub struct GStreamer {
-    player: gst_player::Player,
+pub struct Vlc {
+    instance: Instance,
+    player: MediaPlayer,
     paused: bool,
     volume: i32,
     #[cfg(feature = "mpris")]
@@ -54,15 +53,8 @@ pub struct GStreamer {
 // unsafe impl Send for GSTPlayer {}
 // unsafe impl Sync for GSTPlayer {}
 
-impl GStreamer {
+impl Vlc {
     pub fn new() -> Self {
-        gst::init().expect("Couldn't initialize Gstreamer");
-        let dispatcher = gst_player::PlayerGMainContextSignalDispatcher::new(None);
-        let player = gst_player::Player::new(
-            None,
-            Some(&dispatcher.upcast::<gst_player::PlayerSignalDispatcher>()),
-        );
-
         #[cfg(feature = "mpris")]
         let config = PlatformConfig {
             dbus_name: "termusic",
@@ -82,7 +74,12 @@ impl GStreamer {
             })
             .unwrap();
 
+        // Create an instance
+        let instance = Instance::new().unwrap();
+        // Create a media player
+        let player = MediaPlayer::new(&instance).unwrap();
         Self {
+            instance,
             player,
             paused: false,
             volume: 50,
@@ -93,23 +90,22 @@ impl GStreamer {
         }
     }
 
-    pub fn duration(song: &str) -> ClockTime {
-        let timeout: ClockTime = ClockTime::from_seconds(1);
-        let mut duration = ClockTime::from_seconds(0);
-        if let Ok(discoverer) = gst_pbutils::Discoverer::new(timeout) {
-            if let Ok(info) = discoverer.discover_uri(&format!("file:///{}", song)) {
-                if let Some(d) = info.duration() {
-                    duration = d;
-                }
-            }
+    pub fn duration(song_str: &str) -> Duration {
+        let instance = Instance::new().unwrap();
+        let md = Media::new_path(&instance, song_str).unwrap();
+        match md.duration() {
+            Some(d) => Duration::from_secs(d as u64),
+            None => Duration::from_secs(0),
         }
-        duration
     }
 
     pub fn add_and_play(&mut self, song_str: &str) {
-        self.player.set_uri(&format!("file:///{}", song_str));
+        // Create a media from a file
+        let md = Media::new_path(&self.instance, song_str).unwrap();
+        self.player.set_media(&md);
         self.paused = false;
         self.player.play();
+        thread::sleep(::std::time::Duration::from_secs(10));
 
         #[cfg(feature = "mpris")]
         if let Ok(song) = Song::from_str(song_str) {
@@ -131,7 +127,7 @@ impl GStreamer {
         if self.volume > 100 {
             self.volume = 100;
         }
-        self.player.set_volume(f64::from(self.volume) / 100.0);
+        self.player.set_volume(self.volume);
     }
 
     pub fn volume_down(&mut self) {
@@ -139,7 +135,7 @@ impl GStreamer {
         if self.volume < 0 {
             self.volume = 0;
         }
-        self.player.set_volume(f64::from(self.volume) / 100.0);
+        self.player.set_volume(self.volume);
     }
 
     pub const fn volume(&self) -> i32 {
@@ -153,7 +149,7 @@ impl GStreamer {
             volume = 0;
         }
         self.volume = volume;
-        self.player.set_volume(f64::from(volume) / 100.0);
+        self.player.set_volume(volume);
     }
 
     pub fn pause(&mut self) {
@@ -194,20 +190,21 @@ impl GStreamer {
         if seek_pos.cmp(&duration) == std::cmp::Ordering::Greater {
             bail! {"exceed max length"};
         }
-        self.player.seek(ClockTime::from_seconds(seek_pos as u64));
+        self.player.set_position(seek_pos as f32);
         Ok(())
     }
 
     #[allow(clippy::cast_precision_loss)]
     pub fn get_progress(&mut self) -> (f64, u64, u64) {
-        let time_pos = match self.player.position() {
-            Some(t) => ClockTime::seconds(t),
+        let time_pos = match self.player.get_position() {
+            Some(t) => t as u64,
             None => 0_u64,
         };
-        let duration = match self.player.duration() {
-            Some(d) => ClockTime::seconds(d),
-            None => 119_u64,
-        };
+        // let duration = match self.player.get_media().unwrap().duration() {
+        // Some(d) => d as u64,
+        // None => 119_u64,
+        // };
+        let duration = 119;
         let percent = time_pos as f64 / (duration as f64);
         (percent, time_pos, duration)
     }
