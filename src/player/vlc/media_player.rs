@@ -46,7 +46,7 @@ impl MediaPlayer {
     }
 
     /// Get the Event Manager from which the media player send event.
-    pub fn event_manager<'a>(&'a self) -> EventManager<'a> {
+    pub fn event_manager(&self) -> EventManager {
         unsafe {
             let p = sys::libvlc_media_player_event_manager(self.ptr);
             assert!(!p.is_null());
@@ -59,11 +59,7 @@ impl MediaPlayer {
 
     /// is_playing
     pub fn is_playing(&self) -> bool {
-        if unsafe { sys::libvlc_media_player_is_playing(self.ptr) } == 0 {
-            false
-        } else {
-            true
-        }
+        unsafe { sys::libvlc_media_player_is_playing(self.ptr) != 0 }
     }
 
     /// Play
@@ -107,10 +103,10 @@ impl MediaPlayer {
 
         let data = AudioCallbacksData {
             play: Box::new(play),
-            pause: pause,
-            resume: resume,
-            flush: flush,
-            drain: drain,
+            pause,
+            resume,
+            flush,
+            drain,
         };
         let data = Box::into_raw(Box::new(data));
 
@@ -264,11 +260,7 @@ impl MediaPlayer {
     pub fn will_play(&self) -> bool {
         unsafe {
             let b = sys::libvlc_media_player_will_play(self.ptr);
-            if b == 0 {
-                false
-            } else {
-                true
-            }
+            b != 0
         }
     }
 
@@ -359,11 +351,7 @@ impl MediaPlayer {
     pub fn is_seekable(&self) -> bool {
         unsafe {
             let b = sys::libvlc_media_player_is_seekable(self.ptr);
-            if b == 0 {
-                false
-            } else {
-                true
-            }
+            b != 0
         }
     }
 
@@ -371,11 +359,7 @@ impl MediaPlayer {
     pub fn can_pause(&self) -> bool {
         unsafe {
             let b = sys::libvlc_media_player_can_pause(self.ptr);
-            if b == 0 {
-                false
-            } else {
-                true
-            }
+            b != 0
         }
     }
 
@@ -383,11 +367,7 @@ impl MediaPlayer {
     pub fn program_scrambled(&self) -> bool {
         unsafe {
             let b = sys::libvlc_media_player_program_scrambled(self.ptr);
-            if b == 0 {
-                false
-            } else {
-                true
-            }
+            b != 0
         }
     }
 
@@ -439,27 +419,27 @@ unsafe extern "C" fn audio_cb_play(
     count: c_uint,
     pts: i64,
 ) {
-    let data: &AudioCallbacksData = transmute(data as *mut AudioCallbacksData);
+    let data: &AudioCallbacksData = &*(data as *mut AudioCallbacksData);
     (data.play)(samples, count, pts);
 }
 
 unsafe extern "C" fn audio_cb_pause(data: *mut c_void, pts: i64) {
-    let data: &AudioCallbacksData = transmute(data as *mut AudioCallbacksData);
+    let data: &AudioCallbacksData = &*(data as *mut AudioCallbacksData);
     (data.pause.as_ref().unwrap())(pts);
 }
 
 unsafe extern "C" fn audio_cb_resume(data: *mut c_void, pts: i64) {
-    let data: &AudioCallbacksData = transmute(data as *mut AudioCallbacksData);
+    let data: &AudioCallbacksData = &*(data as *mut AudioCallbacksData);
     (data.resume.as_ref().unwrap())(pts);
 }
 
 unsafe extern "C" fn audio_cb_flush(data: *mut c_void, pts: i64) {
-    let data: &AudioCallbacksData = transmute(data as *mut AudioCallbacksData);
+    let data: &AudioCallbacksData = &*(data as *mut AudioCallbacksData);
     (data.flush.as_ref().unwrap())(pts);
 }
 
 unsafe extern "C" fn audio_cb_drain(data: *mut c_void) {
-    let data: &AudioCallbacksData = transmute(data as *mut AudioCallbacksData);
+    let data: &AudioCallbacksData = &*(data as *mut AudioCallbacksData);
     (data.drain.as_ref().unwrap())();
 }
 

@@ -2,8 +2,6 @@
 // This file is part of vlc-rs.
 // Licensed under the MIT license, see the LICENSE file.
 
-#![allow(non_camel_case_types, non_upper_case_globals)]
-
 #[link(name = "vlc")]
 extern "C" {}
 
@@ -252,6 +250,7 @@ impl libvlc_media_track_t {
     }
 }
 
+#[allow(unused)]
 extern "C" {
     pub fn libvlc_media_new_location(
         p_instance: *mut libvlc_instance_t,

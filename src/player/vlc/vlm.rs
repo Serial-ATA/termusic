@@ -232,7 +232,7 @@ impl Vlm for Instance {
         let name = to_cstr(name);
         let result = unsafe { from_cstr(sys::libvlc_vlm_show_media(self.ptr, name.as_ptr())) };
         if let Some(data) = result {
-            Ok(data.to_string())
+            Ok(data)
         } else {
             Err(())
         }

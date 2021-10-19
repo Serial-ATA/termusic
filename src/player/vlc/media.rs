@@ -68,7 +68,7 @@ impl Media {
         }
     }
 
-    pub fn event_manager<'a>(&'a self) -> EventManager<'a> {
+    pub fn event_manager(&self) -> EventManager {
         unsafe {
             let p = sys::libvlc_media_event_manager(self.ptr);
             assert!(!p.is_null());
@@ -100,11 +100,7 @@ impl Media {
 
     /// Save the meta previously set.
     pub fn save_meta(&self) -> bool {
-        if unsafe { sys::libvlc_media_save_meta(self.ptr) } == 0 {
-            false
-        } else {
-            true
-        }
+        unsafe { sys::libvlc_media_save_meta(self.ptr) != 0 }
     }
 
     /// Get current state of media descriptor object.
@@ -134,11 +130,7 @@ impl Media {
 
     /// Get Parsed status for media descriptor object.
     pub fn is_parsed(&self) -> bool {
-        if unsafe { sys::libvlc_media_is_parsed(self.ptr) } == 0 {
-            false
-        } else {
-            true
-        }
+        unsafe { sys::libvlc_media_is_parsed(self.ptr) != 0 }
     }
 
     pub fn tracks(&self) -> Option<Vec<MediaTrack>> {

@@ -136,7 +136,7 @@ impl Instance {
     }
 
     /// Returns the VLM event manager
-    pub fn vlm_event_manager<'a>(&'a self) -> EventManager<'a> {
+    pub fn vlm_event_manager(&self) -> EventManager {
         unsafe {
             let p = sys::libvlc_vlm_get_event_manager(self.ptr);
             assert!(!p.is_null());

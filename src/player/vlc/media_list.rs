@@ -112,13 +112,7 @@ impl MediaList {
 
     /// This indicates if this media list is read-only from a user point of view.
     pub fn is_readonly(&self) -> bool {
-        unsafe {
-            if sys::libvlc_media_list_is_readonly(self.ptr) == 0 {
-                false
-            } else {
-                true
-            }
-        }
+        unsafe { sys::libvlc_media_list_is_readonly(self.ptr) != 0 }
     }
 
     /// Get lock on media list items
@@ -137,7 +131,7 @@ impl MediaList {
     }
 
     /// Get EventManager from this media list instance.
-    pub fn event_manager<'a>(&'a self) -> EventManager<'a> {
+    pub fn event_manager(&self) -> EventManager {
         unsafe {
             let p = sys::libvlc_media_list_event_manager(self.ptr);
             assert!(!p.is_null());

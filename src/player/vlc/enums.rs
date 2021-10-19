@@ -24,7 +24,7 @@ pub enum Meta {
     Rating,
     Date,
     Setting,
-    URL,
+    Url,
     Language,
     NowPlaying,
     Publisher,

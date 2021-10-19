@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#[allow(non_camel_case_types, non_upper_case_globals, unused)]
 mod vlc;
 use anyhow::{bail, Result};
 // use std::sync::Arc;

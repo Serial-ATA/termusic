@@ -42,13 +42,7 @@ impl MediaPlayerVideoEx for MediaPlayer {
         }
     }
     fn get_fullscreen(&self) -> bool {
-        unsafe {
-            if sys::libvlc_get_fullscreen(self.ptr) == 0 {
-                false
-            } else {
-                true
-            }
-        }
+        unsafe { sys::libvlc_get_fullscreen(self.ptr) != 0 }
     }
     fn set_key_input(&self, on: bool) {
         unsafe {
