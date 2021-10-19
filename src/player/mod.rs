@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+mod vlc;
 use anyhow::{bail, Result};
 // use std::sync::Arc;
 // use std::thread;
@@ -33,17 +34,18 @@ use crate::souvlaki::{
 };
 #[cfg(feature = "mpris")]
 use std::str::FromStr;
+use std::sync::mpsc::channel;
 #[cfg(feature = "mpris")]
-use std::sync::mpsc::{self, Receiver};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
+use std::thread::sleep;
 use std::time::Duration;
 use vlc::{Instance, Media, MediaPlayer, MediaPlayerAudioEx};
 
 pub struct Vlc {
-    instance: Instance,
-    player: MediaPlayer,
     paused: bool,
     volume: i32,
+    sender_command: Sender<VlcCommand>,
     #[cfg(feature = "mpris")]
     controls: MediaControls,
     #[cfg(feature = "mpris")]
@@ -52,6 +54,13 @@ pub struct Vlc {
 
 // unsafe impl Send for GSTPlayer {}
 // unsafe impl Sync for GSTPlayer {}
+
+enum VlcCommand {
+    Play(String),
+    Pause,
+    Resume,
+    SetVolume(i32),
+}
 
 impl Vlc {
     pub fn new() -> Self {
@@ -73,16 +82,38 @@ impl Vlc {
                 tx.send(event).ok();
             })
             .unwrap();
+        let (tx2, rx2) = channel::<VlcCommand>();
 
-        // Create an instance
-        let instance = Instance::new().unwrap();
-        // Create a media player
-        let player = MediaPlayer::new(&instance).unwrap();
+        thread::spawn(move || {
+            if let Some(instance) = Instance::new() {
+                if let Some(player) = MediaPlayer::new(&instance) {
+                    loop {
+                        if let Ok(command) = rx2.try_recv() {
+                            match command {
+                                VlcCommand::Play(song_str) => {
+                                    let md = Media::new_path(&instance, song_str).unwrap();
+                                    player.set_media(&md);
+                                    player.play().ok();
+                                }
+                                VlcCommand::Pause => player.pause(),
+                                VlcCommand::Resume => {
+                                    player.play().ok();
+                                }
+                                VlcCommand::SetVolume(volume) => {
+                                    player.set_volume(volume).ok();
+                                } // _ => {}
+                            }
+                        }
+                        sleep(Duration::from_millis(200));
+                    }
+                }
+            }
+        });
+
         Self {
-            instance,
-            player,
             paused: false,
             volume: 50,
+            sender_command: tx2,
             #[cfg(feature = "mpris")]
             controls,
             #[cfg(feature = "mpris")]
@@ -90,6 +121,7 @@ impl Vlc {
         }
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn duration(song_str: &str) -> Duration {
         let instance = Instance::new().unwrap();
         let md = Media::new_path(&instance, song_str).unwrap();
@@ -100,12 +132,10 @@ impl Vlc {
     }
 
     pub fn add_and_play(&mut self, song_str: &str) {
-        // Create a media from a file
-        let md = Media::new_path(&self.instance, song_str).unwrap();
-        self.player.set_media(&md);
         self.paused = false;
-        self.player.play();
-        thread::sleep(::std::time::Duration::from_secs(10));
+        self.sender_command
+            .send(VlcCommand::Play(song_str.to_string()))
+            .ok();
 
         #[cfg(feature = "mpris")]
         if let Ok(song) = Song::from_str(song_str) {
@@ -127,7 +157,7 @@ impl Vlc {
         if self.volume > 100 {
             self.volume = 100;
         }
-        self.player.set_volume(self.volume);
+        self.set_volume(self.volume);
     }
 
     pub fn volume_down(&mut self) {
@@ -135,7 +165,7 @@ impl Vlc {
         if self.volume < 0 {
             self.volume = 0;
         }
-        self.player.set_volume(self.volume);
+        self.set_volume(self.volume);
     }
 
     pub const fn volume(&self) -> i32 {
@@ -149,12 +179,14 @@ impl Vlc {
             volume = 0;
         }
         self.volume = volume;
-        self.player.set_volume(volume);
+        self.sender_command
+            .send(VlcCommand::SetVolume(self.volume))
+            .ok();
     }
 
     pub fn pause(&mut self) {
         self.paused = true;
-        self.player.pause();
+        self.sender_command.send(VlcCommand::Pause).ok();
 
         #[cfg(feature = "mpris")]
         self.controls
@@ -164,7 +196,7 @@ impl Vlc {
 
     pub fn resume(&mut self) {
         self.paused = false;
-        self.player.play();
+        self.sender_command.send(VlcCommand::Resume).ok();
 
         #[cfg(feature = "mpris")]
         self.controls
@@ -190,22 +222,23 @@ impl Vlc {
         if seek_pos.cmp(&duration) == std::cmp::Ordering::Greater {
             bail! {"exceed max length"};
         }
-        self.player.set_position(seek_pos as f32);
+        // self.player.set_position(seek_pos as f32);
         Ok(())
     }
 
     #[allow(clippy::cast_precision_loss)]
     pub fn get_progress(&mut self) -> (f64, u64, u64) {
-        let time_pos = match self.player.get_position() {
-            Some(t) => t as u64,
-            None => 0_u64,
-        };
-        // let duration = match self.player.get_media().unwrap().duration() {
-        // Some(d) => d as u64,
-        // None => 119_u64,
+        // let time_pos = match self.player.get_position() {
+        //     Some(t) => t as u64,
+        //     None => 0_u64,
         // };
-        let duration = 119;
-        let percent = time_pos as f64 / (duration as f64);
-        (percent, time_pos, duration)
+        // // let duration = match self.player.get_media().unwrap().duration() {
+        // // Some(d) => d as u64,
+        // // None => 119_u64,
+        // // };
+        // let duration = 119;
+        // let percent = time_pos as f64 / (duration as f64);
+        // (percent, time_pos, duration)
+        (0.7, 23, 129)
     }
 }

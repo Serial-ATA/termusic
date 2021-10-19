@@ -83,7 +83,7 @@ impl Context {
 impl Drop for Context {
     fn drop(&mut self) {
         // Re-enable terminal stuff
-        // self.leave_alternate_screen();
+        self.leave_alternate_screen();
         let _drop = disable_raw_mode();
     }
 }

@@ -1090,6 +1090,7 @@ dependencies = [
  "lazy_static",
  "lewton",
  "libaes",
+ "libc",
  "log",
  "md5",
  "metaflac",
@@ -1110,7 +1111,6 @@ dependencies = [
  "tuirealm",
  "ureq",
  "viuer",
- "vlc-rs",
  "walkdir",
  "wildmatch",
  "ytd-rs",
@@ -1306,15 +1306,6 @@ dependencies = [
  "lazy_static",
  "tempfile",
  "termcolor",
-]
-
-[[package]]
-name = "vlc-rs"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6223b2d4a7b2977e0758cbff1cb00df37236f91de4593da47f8a2737ac59a96e"
-dependencies = [
- "libc",
 ]
 
 [[package]]
