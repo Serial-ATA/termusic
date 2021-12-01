@@ -253,11 +253,8 @@ impl Update<Msg> for Model {
                     }
                     self.app.unlock_subs();
                     if url.starts_with("http") {
-                        match self.youtube_dl(&url) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                self.mount_error_popup(format!("download error: {}", e).as_str());
-                            }
+                        if let Err(e) = self.youtube_dl(&url) {
+                            self.mount_error_popup(format!("download error: {}", e).as_str());
                         }
                     } else {
                         self.mount_youtube_search_table();
